@@ -1,7 +1,7 @@
 # HAR Analytics
 
-Herramienta de línea de comandos (CLI) escrita en Python que analiza archivos HAR (**HTTP Archive**) para generar reportes de performance interactivos en formato HTML.
-Ideal para inspeccionar tiempos de respuesta de requests de red capturadas desde el DevTools del navegador, comparar endpoints, y detectar cuellos de botella.
+Herramienta de línea de comandos (CLI) escrita en Python que analiza archivos HAR (**HTTP Archive**) para generar reportes de performance **comparativos** en formato HTML.
+Ideal para comparar el rendimiento de dos conjuntos de capturas (por ejemplo, antes y después de una optimización), visualizando tiempos mínimos, promedios y el porcentaje de mejora por endpoint.
 
 ---
 
@@ -10,7 +10,7 @@ Ideal para inspeccionar tiempos de respuesta de requests de red capturadas desde
 El script principal orquesta un pipeline de análisis en cuatro fases:
 
 ### 1. Descubrimiento y parseo de archivos HAR
-Acepta como entrada un **archivo `.har` individual** o una **carpeta** que puede contener múltiples archivos `.har` (incluyendo subcarpetas). Por cada request encontrada extrae:
+Acepta como entrada **dos carpetas** (línea base y comparación), cada una pudiendo contener múltiples archivos `.har` (incluyendo subcarpetas). Por cada request encontrada extrae:
 
 - URL completa y endpoint base (sin query params)
 - Parámetros OData: `$select` y `$filter`
@@ -35,13 +35,13 @@ Agrupa las requests por URL y calcula por cada endpoint:
 
 También calcula métricas globales sobre el total de requests filtradas.
 
-### 4. Generación del reporte HTML
+### 4. Generación del reporte HTML comparativo
 Genera un archivo HTML interactivo con:
 
-- **Resumen general**: tabla comparativa de todos los endpoints con sus métricas clave
-- **Gráfica de resumen**: barras agrupadas de Min/Max total por URL
-- **Detalle por URL**: sección individual para cada endpoint con tabla completa y gráfica de tiempos Min/Max por fase de red
-- Metadata del análisis: fecha, archivos procesados y filtros aplicados
+- **Resumen general**: tabla con columnas `Número`, `Endpoint`, `Min (ms)` y `Avg (ms)` de **ambas carpetas** y columna `% Mejora` (estimado del % de mejora de la Carpeta 2 vs Carpeta 1)
+- **Gráfica de resumen**: barras agrupadas comparando el **tiempo Min Total** por URL entre Carpeta 1 y Carpeta 2
+- **Detalle por URL**: sección individual con tabla comparativa (Min/Avg por carpeta + % Mejora) y gráfica de **Min por fase de red** comparando Carpeta 1 vs Carpeta 2
+- Metadata del análisis: fecha, archivos procesados por carpeta y filtros aplicados
 
 ---
 
@@ -66,11 +66,8 @@ numpy
 Ejecuta el script desde la carpeta `app/`:
 
 ```bash
-# Analizar un archivo HAR individual
-python script.py ruta/al/archivo.har
-
-# Analizar todos los .har de una carpeta (y subcarpetas)
-python script.py ruta/a/la/carpeta/
+# Comparar dos carpetas de archivos HAR
+python script.py ruta/carpeta_baseline/ ruta/carpeta_nueva/
 ```
 
 El reporte se guarda por defecto como `report.html` en el directorio actual.
@@ -80,12 +77,13 @@ El reporte se guarda por defecto como `report.html` en el directorio actual.
 ## Opciones disponibles
 
 ```
-python script.py <input> [--filter PATRON] [--output RUTA]
+python script.py <input1> <input2> [--filter PATRON] [--output RUTA]
 ```
 
 | Argumento | Descripción | Valor por defecto |
 |---|---|---|
-| `input` | Ruta al archivo `.har` o carpeta con archivos `.har` | *(requerido)* |
+| `input1` | Carpeta con archivos `.har` de línea base (Carpeta 1) | *(requerido)* |
+| `input2` | Carpeta con archivos `.har` a comparar (Carpeta 2) | *(requerido)* |
 | `--filter` | Filtro de URL (substring o regex). Puede usarse múltiples veces | Sin filtro (incluye todo) |
 | `--output` | Ruta del archivo HTML de salida | `report.html` |
 
@@ -122,17 +120,17 @@ python script.py ./hars/ --filter "api/products" --filter "api/customers"
 ## Ejemplos completos
 
 ```bash
-# Reporte de todos los endpoints en session.har
-python script.py session.har
+# Comparar todos los endpoints entre dos conjuntos de capturas
+python script.py ./capturas_antes/ ./capturas_despues/
 
 # Filtrar solo requests de inventario y guardar en un nombre personalizado
-python script.py ./capturas/ --filter "inventory" --output reporte_inventario.html
+python script.py ./baseline/ ./optimizado/ --filter "inventory" --output reporte_inventario.html
 
 # Filtrar endpoints OData con regex y guardar en subdirectorio
-python script.py ./hars/ --filter "EntitySet\(\d+\)" --output ./reportes/odata.html
+python script.py ./hars_v1/ ./hars_v2/ --filter "EntitySet\(\d+\)" --output ./reportes/odata.html
 
 # Combinar múltiples filtros
-python script.py ./hars/ --filter "api/v2" --filter "api/v3" --output reporte_v2_v3.html
+python script.py ./hars_v1/ ./hars_v2/ --filter "api/v2" --filter "api/v3" --output reporte_v2_v3.html
 ```
 
 ---
